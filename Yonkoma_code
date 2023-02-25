@@ -1,0 +1,67 @@
+from os import listdir 
+from os.path import isfile, join 
+import yaml 
+from glob import glob
+import shutil 
+import numpy as np 
+import pandas as pd 
+from IPython.display import Image 
+
+!git clone https://github.com/ultralytics/yolov5
+%cd yolov5
+%pip install -qr requirements.txt
+
+# creating text files to the corresponding images
+cwd = '/kaggle/working/'
+
+with open(join( cwd , 'train.txt'), 'w') as f:
+    for path in glob('/kaggle/input/yonkoma-object-detectionv1iyolov5pytorch/train/images/*'):
+        f.write(path+'\n')
+            
+with open(join( cwd , 'val.txt'), 'w') as f:
+    for path in glob('/kaggle/input/yonkoma-object-detectionv1iyolov5pytorch/valid/images/*'):
+        f.write(path+'\n')
+
+with open(join( cwd , 'test.txt'), 'w') as f:
+    for path in glob('/kaggle/input/yonkoma-object-detectionv1iyolov5pytorch/test/images/*'):
+        f.write(path+'\n')
+
+# Creating YAML file
+data = dict(
+    train = join( cwd , 'train.txt'),
+    val   = join( cwd , 'val.txt' ),
+    test = join(cwd, 'test.txt'),
+    nc    = 2, # number of class = 1
+    names = ['Yonkoma_2x2', 'Yonkoma_4x1']
+    )
+
+with open(join( cwd , 'Yonkoma.yaml'), 'w') as outfile:
+    yaml.dump(data, outfile, default_flow_style=False)
+
+f = open(join( cwd , 'Yonkoma.yaml'), 'r')
+print('\nyaml:')
+print(f.read())
+    
+# Training. (Batch_size = 8, epoch =1000, patience = 30)
+!python train.py --batch 8 --epochs 1000 --data /kaggle/working/Yonkoma.yaml --patience 30
+
+# Saving the weight
+shutil.copyfile('/kaggle/input/yonkoma-weightpt/Yonkoma_weight.pt', '/kaggle/working/Yonkoma_weight.pt')
+
+# Test (confidence = 0.6)
+!python val.py --weights '/kaggle/working/Yonkoma_weight.pt' --task 'test' --data /kaggle/working/Yonkoma.yaml --conf 0.6
+
+# Test Result 
+Image(filename = '/kaggle/working/yolov5/runs/val/exp2/val_batch0_pred.jpg')
+
+# Confusion Matrix
+Image(filename = '/kaggle/working/yolov5/runs/val/exp2/confusion_matrix.png')
+
+# PR Curve
+Image(filename = '/kaggle/working/yolov5/runs/val/exp2/PR_curve.png')
+
+# F1 Score
+Image(filename = '/kaggle/working/yolov5/runs/val/exp2/F1_curve.png')
+
+# You can test your own dataset with this code below
+!python detect.py --weights '/kaggle/working/Yonkoma_weight.pt' --source filepath --conf 0.6 
